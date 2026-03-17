@@ -1,0 +1,455 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #6366f1;
+  --green: #22c55e;
+  --red: #ef4444;
+  --tile-bg: #334155;
+  --tile-hover: #475569;
+  --radius: 8px;
+  --tile-size: clamp(52px, 12vw, 72px);
+  --gap: clamp(6px, 1.5vw, 10px);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100dvh;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────── */
+
+.play-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.play-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--accent);
+}
+
+.play-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Game area ──────────────────────────────────────────────────────── */
+
+.game-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ── Board ──────────────────────────────────────────────────────────── */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, var(--tile-size));
+  grid-template-rows: repeat(4, var(--tile-size));
+  gap: var(--gap);
+}
+
+.cell {
+  width: var(--tile-size);
+  height: var(--tile-size);
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s;
+  cursor: default;
+}
+
+.cell:empty {
+  border-style: dashed;
+}
+
+.cell--row-valid.cell--col-valid {
+  border-color: var(--green);
+}
+
+.cell--win {
+  background: color-mix(in srgb, var(--green) 20%, var(--surface));
+  border-color: var(--green);
+}
+
+.cell--row-invalid,
+.cell--col-invalid {
+  border-color: var(--red);
+}
+
+.cell--row-valid.cell--col-invalid,
+.cell--row-invalid.cell--col-valid {
+  border-color: var(--red);
+}
+
+.cell--locked {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.tile--locked {
+  cursor: default;
+  background: color-mix(in srgb, var(--accent) 30%, var(--tile-bg));
+}
+
+/* ── Tiles ──────────────────────────────────────────────────────────── */
+
+.tile {
+  width: calc(var(--tile-size) - 8px);
+  height: calc(var(--tile-size) - 8px);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--tile-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: background 0.1s, transform 0.1s;
+}
+
+.tile:active,
+.tile:hover {
+  background: var(--tile-hover);
+  transform: scale(1.05);
+}
+
+.tile--ghost {
+  background: transparent;
+  border: 2px dashed var(--border);
+  cursor: default;
+}
+
+.tile--in-cell {
+  width: calc(var(--tile-size) - 10px);
+  height: calc(var(--tile-size) - 10px);
+}
+
+/* ── Tray ───────────────────────────────────────────────────────────── */
+
+.tray {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: var(--gap);
+  width: 100%;
+  max-width: calc(var(--tile-size) * 4 + var(--gap) * 3);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+
+.btn {
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn:hover { opacity: 0.85; }
+.btn:active { transform: scale(0.97); }
+
+.btn--primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn--reset {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.btn--share {
+  background: var(--green);
+  color: #fff;
+}
+
+/* ── Timer / Score / Streak ─────────────────────────────────────────── */
+
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.score {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.streak {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 32px 24px;
+  max-width: 360px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+}
+
+.modal__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.modal__close:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+.modal {
+  position: relative;
+}
+
+.modal__title {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.modal__subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal__input {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+}
+
+.modal__input:focus {
+  border-color: var(--accent);
+}
+
+.modal__error {
+  color: var(--red);
+  font-size: 0.85rem;
+}
+
+.modal--win .modal__score {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.modal--win .modal__time {
+  color: var(--text-muted);
+}
+
+.modal--win .modal__streak {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal__submitted {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.modal__next {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.modal__win-emoji {
+  font-size: 2rem;
+}
+
+/* ── Leaderboard ────────────────────────────────────────────────────── */
+
+.leaderboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leaderboard-section__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.leaderboard {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.leaderboard th,
+.leaderboard td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.leaderboard th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.leaderboard__row--you td {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.leaderboard__empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ── Banner ─────────────────────────────────────────────────────────── */
+
+.already-won-banner {
+  background: color-mix(in srgb, var(--green) 15%, var(--surface));
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  color: var(--green);
+  text-align: center;
+}
+
+/* ── Instructions ───────────────────────────────────────────────────── */
+
+.instructions {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.instructions strong {
+  color: var(--text);
+}
+
+/* ── Progress indicator ─────────────────────────────────────────────── */
+
+.progress {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.progress__group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.progress__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 28px;
+}
+
+.progress__pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s;
+}
+
+.progress__pip--valid {
+  background: var(--green);
+}
+
+.progress__pip--invalid {
+  background: var(--red);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+
+@media (max-width: 380px) {
+  .tray {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}

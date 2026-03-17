@@ -1,0 +1,33 @@
+# deps
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# next
+/.next/
+/out/
+
+# env
+.env*.local
+.env
+
+# misc
+.DS_Store
+*.pem
+/coverage
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# puzzles with solutions (never ship to client)
+/data/puzzles.json
