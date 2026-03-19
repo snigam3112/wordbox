@@ -1,5 +1,5 @@
-export function calculateScore(elapsedSeconds: number): number {
-  return Math.max(1000 - elapsedSeconds, 100);
+export function calculateScore(elapsedSeconds: number, hintsUsed = 0): number {
+  return Math.max(1000 - elapsedSeconds - hintsUsed * 100, 50);
 }
 
 export function scoreLabel(score: number): string {

@@ -16,14 +16,14 @@ import { useDragDrop } from "@/hooks/useDragDrop";
 import { useTimer } from "@/hooks/useTimer";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { loadWordSet } from "@/lib/wordlist";
-import { getDailyPuzzle3x3, getPuzzleIndex } from "@/lib/puzzles";
+import { getDailyPuzzle5x5, getPuzzleIndex } from "@/lib/puzzles";
 import { getStreak, recordWin, hasWonToday } from "@/lib/streak";
 import { calculateScore } from "@/lib/scoring";
 import { getPersonalBest, recordPersonalBest } from "@/lib/personal-best";
 import { isSoundEnabled, toggleSound, playPlaceSound, playWinSound } from "@/lib/sounds";
 import { Puzzle } from "@/types";
 
-export default function Play3x3Page() {
+export default function Play5x5Page() {
   const [username, setUsername] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showWinOverlay, setShowWinOverlay] = useState(false);
@@ -34,6 +34,7 @@ export default function Play3x3Page() {
   const [soundOn, setSoundOn] = useState(true);
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [yesterdayMode, setYesterdayMode] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const game = useGameState(wordSet);
   const { elapsed } = useTimer(game.status === "playing");
@@ -52,13 +53,19 @@ export default function Play3x3Page() {
     }
 
     async function setup() {
-      const [ws, puzzle] = await Promise.all([loadWordSet(3), getDailyPuzzle3x3()]);
-      setWordSet(ws);
-      setCurrentPuzzle(puzzle);
-      if (hasWonToday() && puzzle.answer) {
-        game.showSolved(puzzle.answer);
-      } else {
-        game.initGame(puzzle.letters, puzzle.hints, 3);
+      try {
+        const [ws, puzzle] = await Promise.all([loadWordSet(5), getDailyPuzzle5x5()]);
+        setWordSet(ws);
+        setCurrentPuzzle(puzzle);
+        if (hasWonToday() && puzzle.answer) {
+          game.showSolved(puzzle.answer);
+        } else {
+          game.initGame(puzzle.letters, puzzle.hints, 5);
+        }
+      } catch (err) {
+        setLoadError(
+          err instanceof Error ? err.message : "Failed to load 5×5 puzzle."
+        );
       }
     }
     setup();
@@ -69,7 +76,7 @@ export default function Play3x3Page() {
       if (!game.gaveUp && !yesterdayMode) {
         const newStreak = recordWin();
         setStreak(newStreak);
-        const newRecord = recordPersonalBest("3x3", elapsed);
+        const newRecord = recordPersonalBest("5x5", elapsed);
         setIsNewRecord(newRecord);
         playWinSound();
       }
@@ -117,11 +124,31 @@ export default function Play3x3Page() {
 
   async function loadYesterday() {
     if (!wordSet) return;
-    const puzzle = await getDailyPuzzle3x3(1);
-    setCurrentPuzzle(puzzle);
-    game.initGame(puzzle.letters, puzzle.hints, 3);
-    setYesterdayMode(true);
-    setShowWinOverlay(false);
+    try {
+      const puzzle = await getDailyPuzzle5x5(1);
+      setCurrentPuzzle(puzzle);
+      game.initGame(puzzle.letters, puzzle.hints, 5);
+      setYesterdayMode(true);
+      setShowWinOverlay(false);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load puzzle.");
+    }
+  }
+
+  if (loadError) {
+    return (
+      <main className="play-page">
+        <header className="play-header">
+          <div className="play-header__left">
+            <h1 className="logo">WordBox <span style={{ fontSize: "1rem", opacity: 0.7 }}>5×5</span></h1>
+            <Link href="/play" className="mode-link">← 4×4</Link>
+          </div>
+        </header>
+        <div className="already-won-banner" style={{ color: "var(--red)", borderColor: "var(--red)" }}>
+          {loadError}
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -139,8 +166,8 @@ export default function Play3x3Page() {
           submitted={submitted}
           onClose={() => setShowWinOverlay(false)}
           gaveUp={game.gaveUp}
-          gridSize={3}
-          personalBest={getPersonalBest("3x3")}
+          gridSize={5}
+          personalBest={getPersonalBest("5x5")}
           isNewRecord={isNewRecord}
           hintsUsed={game.hintsUsed}
           hideSubmit={yesterdayMode}
@@ -149,7 +176,7 @@ export default function Play3x3Page() {
 
       <header className="play-header">
         <div className="play-header__left">
-          <h1 className="logo">WordBox <span style={{ fontSize: "1rem", opacity: 0.7 }}>3×3</span></h1>
+          <h1 className="logo">WordBox <span style={{ fontSize: "1rem", opacity: 0.7 }}>5×5</span></h1>
           <Link href="/play" className="mode-link">← 4×4</Link>
         </div>
         <div className="play-header__right">
@@ -188,7 +215,7 @@ export default function Play3x3Page() {
       <section className="game-area">
         {game.status !== "solved" && (
           <p className="instructions">
-            Fill every row <strong>and</strong> column with a valid word — 6 words total, all different.
+            Fill every row <strong>and</strong> column with a valid word — 10 words total, all different.
           </p>
         )}
 
@@ -217,7 +244,7 @@ export default function Play3x3Page() {
           grid={game.grid}
           validation={game.validation}
           lockedCells={game.lockedCells}
-          gridSize={3}
+          gridSize={5}
           readonly={game.status === "solved"}
           hintMode={game.hintMode}
           onHintReveal={(r, c) => currentPuzzle?.answer && game.applyHint(currentPuzzle.answer, r, c)}

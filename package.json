@@ -9,6 +9,7 @@
     "lint": "next lint",
     "generate-puzzles": "node scripts/generate-puzzles.js",
     "generate-puzzles-3x3": "node scripts/generate-puzzles-3x3.js",
+    "generate-puzzles-5x5": "node scripts/generate-puzzles-5x5.js",
     "fetch-wordlist": "node scripts/fetch-wordlist.js"
   },
   "dependencies": {

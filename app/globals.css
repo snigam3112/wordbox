@@ -166,10 +166,15 @@ body {
   transition: background 0.1s, transform 0.1s;
 }
 
-.tile:active,
 .tile:hover {
   background: var(--tile-hover);
   transform: scale(1.05);
+}
+
+.tile:active {
+  background: var(--tile-hover);
+  transform: scale(1.05);
+  cursor: grabbing;
 }
 
 .tile--ghost {
@@ -178,9 +183,16 @@ body {
   cursor: default;
 }
 
+@keyframes tile-pop {
+  0%   { transform: scale(0.82); opacity: 0.6; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1);    opacity: 1;  }
+}
+
 .tile--in-cell {
   width: calc(var(--tile-size) - 10px);
   height: calc(var(--tile-size) - 10px);
+  animation: tile-pop 0.18s ease-out;
 }
 
 /* ── Tray ───────────────────────────────────────────────────────────── */
@@ -613,4 +625,182 @@ body {
   font-size: 0.78rem;
   color: var(--text-muted);
   line-height: 1.4;
+}
+
+/* ── Sound toggle ────────────────────────────────────────────────────── */
+
+.sound-toggle {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.sound-toggle:hover {
+  color: var(--text);
+}
+
+/* ── How To Play modal ───────────────────────────────────────────────── */
+
+.howto__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.howto__step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.howto__num {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.howto__step p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.howto__step p strong {
+  color: var(--text);
+}
+
+.btn--icon {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.btn--icon:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* ── Personal best ───────────────────────────────────────────────────── */
+
+.modal__new-record {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.modal__best-time {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.modal__hints-used {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ── Hint system ─────────────────────────────────────────────────────── */
+
+.cell--hintable {
+  border-color: var(--accent);
+  border-style: dashed;
+  cursor: pointer;
+  animation: hint-pulse 1s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
+}
+
+.btn--hint {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  opacity: 0.85;
+}
+
+.btn--hint:hover {
+  opacity: 1;
+}
+
+.btn--hint.active {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  opacity: 1;
+}
+
+.btn--hint:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Menu streak ─────────────────────────────────────────────────────── */
+
+.menu__streak {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* ── Yesterday mode ──────────────────────────────────────────────────── */
+
+.btn--yesterday {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px;
+}
+
+.btn--yesterday:hover {
+  color: var(--text);
+}
+
+.yesterday-banner {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-align: center;
+}
+
+/* ── 5x5 board ───────────────────────────────────────────────────────── */
+
+.board--5x5 {
+  grid-template-columns: repeat(5, var(--tile-size));
+  grid-template-rows: repeat(5, var(--tile-size));
+}
+
+.menu__card-grid--5x5 {
+  grid-template-columns: repeat(5, 8px);
+  grid-template-rows: repeat(5, 8px);
+}
+
+/* ── Menu 3-column layout ────────────────────────────────────────────── */
+
+.menu__modes--three {
+  grid-template-columns: 1fr 1fr 1fr;
 }

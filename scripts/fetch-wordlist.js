@@ -62,9 +62,11 @@ async function main() {
 
   const twl4 = filterWords(twlRaw, 4);
   const twl3 = filterWords(twlRaw, 3);
+  const twl5 = filterWords(twlRaw, 5);
   fs.writeFileSync(path.join(__dirname, "../public/enable4.txt"), twl4.join("\n"));
   fs.writeFileSync(path.join(__dirname, "../public/enable3.txt"), twl3.join("\n"));
-  console.log(`  Wrote enable4.txt (${twl4.length} words), enable3.txt (${twl3.length} words)`);
+  fs.writeFileSync(path.join(__dirname, "../public/enable5.txt"), twl5.join("\n"));
+  console.log(`  Wrote enable4.txt (${twl4.length} words), enable3.txt (${twl3.length} words), enable5.txt (${twl5.length} words)`);
 
   // ── 2. Google 20K common words ─────────────────────────────────────────────
   console.log("\nDownloading Google 20K common English words...");
@@ -81,27 +83,33 @@ async function main() {
 
   const twl4Set = new Set(twl4);
   const twl3Set = new Set(twl3);
+  const twl5Set = new Set(twl5);
 
-  let common4, common3;
+  let common4, common3, common5;
 
   if (googleRaw) {
     const google4 = filterWords(googleRaw, 4);
     const google3 = filterWords(googleRaw, 3);
+    const google5 = filterWords(googleRaw, 5);
     common4 = google4.filter((w) => twl4Set.has(w));
     common3 = google3.filter((w) => twl3Set.has(w));
+    common5 = google5.filter((w) => twl5Set.has(w));
   } else {
     // Fallback: TWL minus rare-letter words
     common4 = twl4.filter((w) => !/[qxzj]/.test(w));
     common3 = twl3.filter((w) => !/[qxzj]/.test(w));
+    common5 = twl5.filter((w) => !/[qxzj]/.test(w));
   }
 
   fs.writeFileSync(path.join(__dirname, "../public/common4.txt"), common4.join("\n"));
   fs.writeFileSync(path.join(__dirname, "../public/common3.txt"), common3.join("\n"));
-  console.log(`  Wrote common4.txt (${common4.length} words), common3.txt (${common3.length} words)`);
+  fs.writeFileSync(path.join(__dirname, "../public/common5.txt"), common5.join("\n"));
+  console.log(`  Wrote common4.txt (${common4.length} words), common3.txt (${common3.length} words), common5.txt (${common5.length} words)`);
 
   console.log("\nDone! Now run:");
   console.log("  node scripts/generate-puzzles.js");
   console.log("  node scripts/generate-puzzles-3x3.js");
+  console.log("  node scripts/generate-puzzles-5x5.js");
 }
 
 main();

@@ -12,6 +12,8 @@ interface Props {
   isComplete: boolean;
   isLocked: boolean;
   readonly?: boolean;
+  hintMode?: boolean;
+  onHintClick?: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
   onTileDragStart: (e: React.DragEvent) => void;
@@ -27,6 +29,8 @@ export default function GameCell({
   isValidCol,
   isLocked,
   readonly = false,
+  hintMode = false,
+  onHintClick,
   onDragOver,
   onDrop,
   onTileDragStart,
@@ -43,6 +47,9 @@ export default function GameCell({
     else classes.push("cell--col-invalid");
     if (isValidRow && isValidCol) classes.push("cell--win");
   }
+  if (hintMode && !letter && !blocked) {
+    classes.push("cell--hintable");
+  }
 
   return (
     <div
@@ -52,9 +59,11 @@ export default function GameCell({
       data-col={col}
       onDragOver={blocked ? undefined : onDragOver}
       onDrop={blocked ? undefined : onDrop}
+      onClick={hintMode && !letter && !blocked ? onHintClick : undefined}
     >
       {letter && (
         <LetterTile
+          key={letter ?? "_"}
           id={`cell-${row}-${col}`}
           char={letter}
           placed={false}

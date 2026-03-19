@@ -1,6 +1,16 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getStreak } from "@/lib/streak";
 
 export default function Home() {
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    setStreak(getStreak());
+  }, []);
+
   return (
     <main className="menu-page">
       <div className="menu">
@@ -8,6 +18,7 @@ export default function Home() {
         <p className="menu__tagline">
           Fill every row <strong>and</strong> column with a valid word.
         </p>
+        {streak > 0 && <p className="menu__streak">🔥 {streak} day streak</p>}
 
         <div className="menu__modes">
           <Link href="/play" className="menu__card">

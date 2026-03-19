@@ -10,6 +10,8 @@ interface Props {
   lockedCells: Set<string>;
   gridSize?: number;
   readonly?: boolean;
+  hintMode?: boolean;
+  onHintReveal?: (r: number, c: number) => void;
   onDragOver: (e: React.DragEvent, row: number, col: number) => void;
   onDrop: (e: React.DragEvent, row: number, col: number) => void;
   onTileDragStart: (e: React.DragEvent, char: string, row: number, col: number) => void;
@@ -23,13 +25,16 @@ export default function GameBoard({
   lockedCells,
   gridSize = 4,
   readonly = false,
+  hintMode = false,
+  onHintReveal,
   onDragOver,
   onDrop,
   onTileDragStart,
   onTileTouchStart,
   onTileTouchEnd,
 }: Props) {
-  const boardClass = gridSize === 3 ? "board board--3x3" : "board";
+  const boardClass =
+    gridSize === 3 ? "board board--3x3" : gridSize === 5 ? "board board--5x5" : "board";
 
   return (
     <div className={boardClass}>
@@ -45,6 +50,8 @@ export default function GameBoard({
             isComplete={validation.isComplete}
             isLocked={lockedCells.has(`${r},${c}`)}
             readonly={readonly}
+            hintMode={hintMode}
+            onHintClick={() => onHintReveal?.(r, c)}
             onDragOver={(e) => onDragOver(e, r, c)}
             onDrop={(e) => onDrop(e, r, c)}
             onTileDragStart={(e) => onTileDragStart(e, letter ?? "", r, c)}

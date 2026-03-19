@@ -9,6 +9,7 @@ import ScoreDisplay from "@/components/ui/ScoreDisplay";
 import StreakBadge from "@/components/ui/StreakBadge";
 import UsernameModal from "@/components/ui/UsernameModal";
 import WinOverlay from "@/components/ui/WinOverlay";
+import HowToPlayModal from "@/components/ui/HowToPlayModal";
 import LeaderboardTable from "@/components/ui/LeaderboardTable";
 import { useGameState } from "@/hooks/useGameState";
 import { useDragDrop } from "@/hooks/useDragDrop";
@@ -18,15 +19,21 @@ import { loadWordSet } from "@/lib/wordlist";
 import { getDailyPuzzle, getPuzzleIndex } from "@/lib/puzzles";
 import { getStreak, recordWin, hasWonToday } from "@/lib/streak";
 import { calculateScore } from "@/lib/scoring";
+import { getPersonalBest, recordPersonalBest } from "@/lib/personal-best";
+import { isSoundEnabled, toggleSound, playPlaceSound, playWinSound } from "@/lib/sounds";
 import { Puzzle } from "@/types";
 
 export default function PlayPage() {
   const [username, setUsername] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showWinOverlay, setShowWinOverlay] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
   const [wordSet, setWordSet] = useState<Set<string> | null>(null);
   const [streak, setStreak] = useState(0);
   const [currentPuzzle, setCurrentPuzzle] = useState<Puzzle | null>(null);
+  const [soundOn, setSoundOn] = useState(true);
+  const [isNewRecord, setIsNewRecord] = useState(false);
+  const [yesterdayMode, setYesterdayMode] = useState(false);
 
   const game = useGameState(wordSet);
   const { elapsed } = useTimer(game.status === "playing");
@@ -38,6 +45,11 @@ export default function PlayPage() {
     if (stored) setUsername(stored);
     else setShowModal(true);
     setStreak(getStreak());
+    setSoundOn(isSoundEnabled());
+
+    if (!localStorage.getItem("wordbox_seen_howto")) {
+      setShowHowTo(true);
+    }
 
     async function setup() {
       const [ws, puzzle] = await Promise.all([loadWordSet(4), getDailyPuzzle()]);
@@ -54,9 +66,12 @@ export default function PlayPage() {
 
   useEffect(() => {
     if (game.status === "won") {
-      if (!game.gaveUp) {
+      if (!game.gaveUp && !yesterdayMode) {
         const newStreak = recordWin();
         setStreak(newStreak);
+        const newRecord = recordPersonalBest("4x4", elapsed);
+        setIsNewRecord(newRecord);
+        playWinSound();
       }
       setShowWinOverlay(true);
     }
@@ -65,6 +80,18 @@ export default function PlayPage() {
 
   const dnd = useDragDrop(game.placeTile, game.returnToTray);
 
+  function handleCellDrop(e: React.DragEvent, r: number, c: number) {
+    dnd.handleCellDrop(e, r, c);
+    playPlaceSound();
+  }
+
+  function handleTileTouchEnd(e: React.TouchEvent) {
+    dnd.handleTileTouchEnd(e);
+    // Sound is played on successful place; touch end fires regardless
+    // We play optimistically here as touch detection is hard
+    playPlaceSound();
+  }
+
   function handleConfirmUsername(name: string) {
     setUsername(name);
     setShowModal(false);
@@ -72,7 +99,6 @@ export default function PlayPage() {
 
   function handleReset() {
     game.resetGame();
-    // Timer keeps running — intentional
   }
 
   function handleGiveUp() {
@@ -82,13 +108,28 @@ export default function PlayPage() {
 
   async function handleSubmitScore() {
     if (!username) return;
-    const score = calculateScore(elapsed);
+    const score = calculateScore(elapsed, game.hintsUsed);
     await submitScore(username, score, elapsed);
+  }
+
+  function handleToggleSound() {
+    const next = toggleSound();
+    setSoundOn(next);
+  }
+
+  async function loadYesterday() {
+    if (!wordSet) return;
+    const puzzle = await getDailyPuzzle(1);
+    setCurrentPuzzle(puzzle);
+    game.initGame(puzzle.letters, puzzle.hints, 4);
+    setYesterdayMode(true);
+    setShowWinOverlay(false);
   }
 
   return (
     <main className="play-page">
       {showModal && <UsernameModal onConfirm={handleConfirmUsername} />}
+      {showHowTo && <HowToPlayModal onClose={() => setShowHowTo(false)} />}
 
       {game.status === "won" && showWinOverlay && username && (
         <WinOverlay
@@ -101,6 +142,10 @@ export default function PlayPage() {
           onClose={() => setShowWinOverlay(false)}
           gaveUp={game.gaveUp}
           gridSize={4}
+          personalBest={getPersonalBest("4x4")}
+          isNewRecord={isNewRecord}
+          hintsUsed={game.hintsUsed}
+          hideSubmit={yesterdayMode}
         />
       )}
 
@@ -110,11 +155,31 @@ export default function PlayPage() {
           <Link href="/play/3x3" className="mode-link">Try 3×3 →</Link>
         </div>
         <div className="play-header__right">
+          <button
+            className="btn--icon"
+            onClick={() => setShowHowTo(true)}
+            aria-label="How to play"
+          >
+            ❓
+          </button>
+          <button
+            className="sound-toggle"
+            onClick={handleToggleSound}
+            aria-label={soundOn ? "Mute sounds" : "Enable sounds"}
+          >
+            {soundOn ? "🔊" : "🔇"}
+          </button>
           <StreakBadge streak={streak} />
           <Timer elapsed={elapsed} />
           <ScoreDisplay elapsed={elapsed} />
         </div>
       </header>
+
+      {yesterdayMode && (
+        <div className="yesterday-banner">
+          Playing yesterday&apos;s puzzle — scores not submitted
+        </div>
+      )}
 
       {game.status === "solved" && (
         <div className="already-won-banner">
@@ -156,15 +221,17 @@ export default function PlayPage() {
           lockedCells={game.lockedCells}
           gridSize={4}
           readonly={game.status === "solved"}
+          hintMode={game.hintMode}
+          onHintReveal={(r, c) => currentPuzzle?.answer && game.applyHint(currentPuzzle.answer, r, c)}
           onDragOver={(e, r, c) => dnd.handleCellDragOver(e)}
-          onDrop={(e, r, c) => dnd.handleCellDrop(e, r, c)}
+          onDrop={handleCellDrop}
           onTileDragStart={(e, char, r, c) =>
             dnd.handleTileDragStart(e, `cell-${r}-${c}`, char, "cell", r, c)
           }
           onTileTouchStart={(e, char, r, c) =>
             dnd.handleTileTouchStart(e, `cell-${r}-${c}`, char, "cell", r, c)
           }
-          onTileTouchEnd={dnd.handleTileTouchEnd}
+          onTileTouchEnd={handleTileTouchEnd}
         />
 
         {game.status !== "solved" && (
@@ -182,6 +249,14 @@ export default function PlayPage() {
               <button className="btn btn--reset" onClick={handleReset}>
                 Reset
               </button>
+              {game.status === "playing" && game.hintsRemaining > 0 && (
+                <button
+                  className={`btn btn--hint${game.hintMode ? " active" : ""}`}
+                  onClick={game.activateHint}
+                >
+                  💡 {game.hintsRemaining}
+                </button>
+              )}
               {game.status === "playing" && (
                 <button className="btn btn--giveup" onClick={handleGiveUp}>
                   I Give Up
@@ -200,6 +275,11 @@ export default function PlayPage() {
           alltimeEntries={alltimeEntries}
           currentUsername={username}
         />
+        {!yesterdayMode && (
+          <button className="btn--yesterday" onClick={loadYesterday}>
+            ← Yesterday&apos;s puzzle
+          </button>
+        )}
       </section>
     </main>
   );
