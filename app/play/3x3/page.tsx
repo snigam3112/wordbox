@@ -15,12 +15,12 @@ import { useDragDrop } from "@/hooks/useDragDrop";
 import { useTimer } from "@/hooks/useTimer";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { loadWordSet } from "@/lib/wordlist";
-import { getDailyPuzzle, getPuzzleIndex } from "@/lib/puzzles";
+import { getDailyPuzzle3x3, getPuzzleIndex } from "@/lib/puzzles";
 import { getStreak, recordWin, hasWonToday } from "@/lib/streak";
 import { calculateScore } from "@/lib/scoring";
 import { Puzzle } from "@/types";
 
-export default function PlayPage() {
+export default function Play3x3Page() {
   const [username, setUsername] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showWinOverlay, setShowWinOverlay] = useState(false);
@@ -40,13 +40,13 @@ export default function PlayPage() {
     setStreak(getStreak());
 
     async function setup() {
-      const [ws, puzzle] = await Promise.all([loadWordSet(4), getDailyPuzzle()]);
+      const [ws, puzzle] = await Promise.all([loadWordSet(3), getDailyPuzzle3x3()]);
       setWordSet(ws);
       setCurrentPuzzle(puzzle);
       if (hasWonToday() && puzzle.answer) {
         game.showSolved(puzzle.answer);
       } else {
-        game.initGame(puzzle.letters, puzzle.hints, 4);
+        game.initGame(puzzle.letters, puzzle.hints, 3);
       }
     }
     setup();
@@ -72,7 +72,6 @@ export default function PlayPage() {
 
   function handleReset() {
     game.resetGame();
-    // Timer keeps running — intentional
   }
 
   function handleGiveUp() {
@@ -100,14 +99,14 @@ export default function PlayPage() {
           submitted={submitted}
           onClose={() => setShowWinOverlay(false)}
           gaveUp={game.gaveUp}
-          gridSize={4}
+          gridSize={3}
         />
       )}
 
       <header className="play-header">
         <div className="play-header__left">
-          <h1 className="logo">WordBox</h1>
-          <Link href="/play/3x3" className="mode-link">Try 3×3 →</Link>
+          <h1 className="logo">WordBox <span style={{ fontSize: "1rem", opacity: 0.7 }}>3×3</span></h1>
+          <Link href="/play" className="mode-link">← 4×4</Link>
         </div>
         <div className="play-header__right">
           <StreakBadge streak={streak} />
@@ -125,7 +124,7 @@ export default function PlayPage() {
       <section className="game-area">
         {game.status !== "solved" && (
           <p className="instructions">
-            Fill every row <strong>and</strong> column with a valid word — 8 words total, all different.
+            Fill every row <strong>and</strong> column with a valid word — 6 words total, all different.
           </p>
         )}
 
@@ -154,7 +153,7 @@ export default function PlayPage() {
           grid={game.grid}
           validation={game.validation}
           lockedCells={game.lockedCells}
-          gridSize={4}
+          gridSize={3}
           readonly={game.status === "solved"}
           onDragOver={(e, r, c) => dnd.handleCellDragOver(e)}
           onDrop={(e, r, c) => dnd.handleCellDrop(e, r, c)}

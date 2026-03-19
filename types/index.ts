@@ -6,8 +6,10 @@ export interface HintCell {
 
 export interface Puzzle {
   id: number;
-  letters: string[]; // 14 letters (16 minus 2 pre-filled hints)
-  hints: HintCell[]; // 2 pre-filled locked cells
+  letters: string[];   // remaining letters (tray)
+  hints: HintCell[];   // pre-filled locked cells
+  answer?: string[][]; // solution grid, revealed on give-up
+  gridSize?: number;   // 3 or 4 (defaults to 4)
 }
 
 export interface TileState {
@@ -33,7 +35,7 @@ export interface ScoreEntry {
   elapsed_sec: number;
 }
 
-export type GameStatus = "idle" | "playing" | "won";
+export type GameStatus = "idle" | "playing" | "won" | "solved";
 
 export interface DragData {
   tileId: string;

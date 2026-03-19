@@ -4,29 +4,30 @@ import { useState, useCallback } from "react";
 import { Grid, TileState, GameStatus, ValidationResult, HintCell } from "@/types";
 import { validateGrid } from "@/lib/validation";
 
-const EMPTY_GRID: Grid = [
-  [null, null, null, null],
-  [null, null, null, null],
-  [null, null, null, null],
-  [null, null, null, null],
-];
+function makeEmptyGrid(size: number): Grid {
+  return Array.from({ length: size }, () => Array(size).fill(null));
+}
+
+function makeDefaultValidation(size: number): ValidationResult {
+  return {
+    validRows: Array(size).fill(false),
+    validCols: Array(size).fill(false),
+    isComplete: false,
+    isWin: false,
+  };
+}
 
 interface GameState {
   grid: Grid;
   tiles: TileState[];
   hints: HintCell[];
-  lockedCells: Set<string>;        // "row,col" keys
-  cellToTile: Record<string, string>; // "row,col" → tileId (for non-locked cells)
+  lockedCells: Set<string>;
+  cellToTile: Record<string, string>;
   status: GameStatus;
   validation: ValidationResult;
+  gridSize: number;
+  gaveUp: boolean;
 }
-
-const DEFAULT_VALIDATION: ValidationResult = {
-  validRows: [false, false, false, false],
-  validCols: [false, false, false, false],
-  isComplete: false,
-  isWin: false,
-};
 
 function cellKey(row: number, col: number) {
   return `${row},${col}`;
@@ -34,21 +35,22 @@ function cellKey(row: number, col: number) {
 
 export function useGameState(wordSet: Set<string> | null) {
   const [state, setState] = useState<GameState>({
-    grid: EMPTY_GRID.map((r) => [...r]),
+    grid: makeEmptyGrid(4),
     tiles: [],
     hints: [],
     lockedCells: new Set(),
     cellToTile: {},
     status: "idle",
-    validation: DEFAULT_VALIDATION,
+    validation: makeDefaultValidation(4),
+    gridSize: 4,
+    gaveUp: false,
   });
 
-  function initGame(letters: string[], hints: HintCell[]) {
-    const grid: Grid = EMPTY_GRID.map((r) => [...r]);
+  function initGame(letters: string[], hints: HintCell[], gridSize = 4) {
+    const grid = makeEmptyGrid(gridSize);
     const lockedCells = new Set<string>();
     const cellToTile: Record<string, string> = {};
 
-    // Place hint tiles into the grid
     const hintTiles: TileState[] = hints.map((h, i) => {
       const id = `hint-${i}`;
       grid[h.row][h.col] = h.letter;
@@ -56,7 +58,6 @@ export function useGameState(wordSet: Set<string> | null) {
       return { id, char: h.letter, placed: true, locked: true };
     });
 
-    // Regular tiles from the 14 remaining letters
     const regularTiles: TileState[] = letters.map((char, i) => ({
       id: `tile-${i}`,
       char,
@@ -71,7 +72,9 @@ export function useGameState(wordSet: Set<string> | null) {
       lockedCells,
       cellToTile,
       status: "playing",
-      validation: DEFAULT_VALIDATION,
+      validation: makeDefaultValidation(gridSize),
+      gridSize,
+      gaveUp: false,
     });
   }
 
@@ -87,10 +90,7 @@ export function useGameState(wordSet: Set<string> | null) {
     ) => {
       setState((prev) => {
         if (prev.status !== "playing") return prev;
-
-        // Don't allow placing onto a locked cell
         if (prev.lockedCells.has(cellKey(targetRow, targetCol))) return prev;
-        // Don't allow moving a locked cell
         if (
           sourceType === "cell" &&
           sourceRow !== undefined &&
@@ -105,15 +105,12 @@ export function useGameState(wordSet: Set<string> | null) {
         const existingChar = newGrid[targetRow][targetCol];
         const existingTileId = newCellToTile[cellKey(targetRow, targetCol)];
 
-        // Place tile in target cell
         newGrid[targetRow][targetCol] = tileChar;
         newCellToTile[cellKey(targetRow, targetCol)] = tileId;
 
         if (sourceType === "tray") {
           const tile = newTiles.find((t) => t.id === tileId);
           if (tile) tile.placed = true;
-
-          // Return displaced tile (if any) to tray
           if (existingChar !== null && existingTileId) {
             const displaced = newTiles.find((t) => t.id === existingTileId);
             if (displaced) displaced.placed = false;
@@ -121,10 +118,8 @@ export function useGameState(wordSet: Set<string> | null) {
             newCellToTile[cellKey(targetRow, targetCol)] = tileId;
           }
         } else {
-          // Cell → Cell
           if (sourceRow !== undefined && sourceCol !== undefined) {
             if (existingChar !== null && existingTileId) {
-              // Swap: put displaced tile into source cell
               newGrid[sourceRow][sourceCol] = existingChar;
               newCellToTile[cellKey(sourceRow, sourceCol)] = existingTileId;
             } else {
@@ -137,7 +132,7 @@ export function useGameState(wordSet: Set<string> | null) {
 
         const validation = wordSet
           ? validateGrid(newGrid, wordSet)
-          : DEFAULT_VALIDATION;
+          : makeDefaultValidation(prev.gridSize);
 
         return {
           ...prev,
@@ -173,7 +168,7 @@ export function useGameState(wordSet: Set<string> | null) {
 
         const validation = wordSet
           ? validateGrid(newGrid, wordSet)
-          : DEFAULT_VALIDATION;
+          : makeDefaultValidation(prev.gridSize);
 
         return {
           ...prev,
@@ -189,8 +184,7 @@ export function useGameState(wordSet: Set<string> | null) {
 
   function resetGame() {
     setState((prev) => {
-      const newGrid: Grid = EMPTY_GRID.map((r) => [...r]);
-      // Re-place hint cells
+      const newGrid = makeEmptyGrid(prev.gridSize);
       for (const h of prev.hints) {
         newGrid[h.row][h.col] = h.letter;
       }
@@ -200,10 +194,45 @@ export function useGameState(wordSet: Set<string> | null) {
         tiles: prev.tiles.map((t) => ({ ...t, placed: t.locked })),
         cellToTile: {},
         status: "playing",
-        validation: DEFAULT_VALIDATION,
+        validation: makeDefaultValidation(prev.gridSize),
+        gaveUp: false,
       };
     });
   }
 
-  return { ...state, initGame, placeTile, returnToTray, resetGame };
+  function giveUp(answer: string[][]) {
+    setState((prev) => {
+      const newGrid = answer.map((r) => r.map((c) => c.toUpperCase()));
+      return {
+        ...prev,
+        grid: newGrid,
+        tiles: prev.tiles.map((t) => ({ ...t, placed: true })),
+        status: "won",
+        gaveUp: true,
+      };
+    });
+  }
+
+  function showSolved(answer: string[][]) {
+    const gridSize = answer.length;
+    setState((prev) => ({
+      ...prev,
+      grid: answer.map((r) => r.map((c) => c.toUpperCase())),
+      tiles: [],
+      hints: [],
+      lockedCells: new Set(),
+      cellToTile: {},
+      status: "solved",
+      validation: {
+        validRows: Array(gridSize).fill(true),
+        validCols: Array(gridSize).fill(true),
+        isComplete: true,
+        isWin: true,
+      },
+      gridSize,
+      gaveUp: false,
+    }));
+  }
+
+  return { ...state, initGame, placeTile, returnToTray, resetGame, giveUp, showSolved };
 }

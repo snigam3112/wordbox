@@ -11,6 +11,7 @@ interface Props {
   isValidCol: boolean;
   isComplete: boolean;
   isLocked: boolean;
+  readonly?: boolean;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
   onTileDragStart: (e: React.DragEvent) => void;
@@ -25,12 +26,14 @@ export default function GameCell({
   isValidRow,
   isValidCol,
   isLocked,
+  readonly = false,
   onDragOver,
   onDrop,
   onTileDragStart,
   onTileTouchStart,
   onTileTouchEnd,
 }: Props) {
+  const blocked = isLocked || readonly;
   const classes = ["cell"];
   if (isLocked) classes.push("cell--locked");
   if (letter && !isLocked) {
@@ -47,8 +50,8 @@ export default function GameCell({
       data-cell
       data-row={row}
       data-col={col}
-      onDragOver={isLocked ? undefined : onDragOver}
-      onDrop={isLocked ? undefined : onDrop}
+      onDragOver={blocked ? undefined : onDragOver}
+      onDrop={blocked ? undefined : onDrop}
     >
       {letter && (
         <LetterTile
@@ -56,10 +59,10 @@ export default function GameCell({
           char={letter}
           placed={false}
           inCell
-          locked={isLocked}
-          onDragStart={isLocked ? (e) => e.preventDefault() : onTileDragStart}
-          onTouchStart={isLocked ? () => {} : onTileTouchStart}
-          onTouchEnd={isLocked ? () => {} : onTileTouchEnd}
+          locked={blocked}
+          onDragStart={blocked ? (e) => e.preventDefault() : onTileDragStart}
+          onTouchStart={blocked ? () => {} : onTileTouchStart}
+          onTouchEnd={blocked ? () => {} : onTileTouchEnd}
         />
       )}
     </div>
