@@ -3,6 +3,21 @@
 import { useRef } from "react";
 import { DragData } from "@/types";
 
+function createGhost(char: string, x: number, y: number): HTMLDivElement {
+  const ghost = document.createElement("div");
+  ghost.className = "tile tile--drag-ghost";
+  ghost.textContent = char;
+  ghost.style.left = `${x}px`;
+  ghost.style.top = `${y}px`;
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+function moveGhost(ghost: HTMLDivElement, x: number, y: number) {
+  ghost.style.left = `${x}px`;
+  ghost.style.top = `${y}px`;
+}
+
 type PlaceFn = (
   tileId: string,
   tileChar: string,
@@ -17,6 +32,8 @@ type ReturnFn = (sourceRow: number, sourceCol: number) => void;
 
 export function useDragDrop(onPlace: PlaceFn, onReturnToTray: ReturnFn) {
   const dragData = useRef<DragData | null>(null);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
+  const touchMoveHandlerRef = useRef<((e: TouchEvent) => void) | null>(null);
 
   // ── Mouse / pointer drag ──────────────────────────────────────────────────
 
@@ -77,6 +94,29 @@ export function useDragDrop(onPlace: PlaceFn, onReturnToTray: ReturnFn) {
     sourceCol?: number
   ) {
     dragData.current = { tileId, tileChar, sourceType, sourceRow, sourceCol };
+
+    const touch = e.touches[0];
+    const ghost = createGhost(tileChar, touch.clientX, touch.clientY);
+    ghostRef.current = ghost;
+
+    const onMove = (ev: TouchEvent) => {
+      ev.preventDefault();
+      const t = ev.touches[0];
+      moveGhost(ghost, t.clientX, t.clientY);
+    };
+    touchMoveHandlerRef.current = onMove;
+    document.addEventListener("touchmove", onMove, { passive: false });
+  }
+
+  function removeGhost() {
+    if (touchMoveHandlerRef.current) {
+      document.removeEventListener("touchmove", touchMoveHandlerRef.current);
+      touchMoveHandlerRef.current = null;
+    }
+    if (ghostRef.current) {
+      ghostRef.current.remove();
+      ghostRef.current = null;
+    }
   }
 
   function handleTileTouchEnd(e: React.TouchEvent) {
@@ -84,6 +124,10 @@ export function useDragDrop(onPlace: PlaceFn, onReturnToTray: ReturnFn) {
     if (!d) return;
 
     const touch = e.changedTouches[0];
+
+    // Remove ghost BEFORE elementFromPoint so it doesn't block target detection
+    removeGhost();
+
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
     if (!el) { dragData.current = null; return; }
 
