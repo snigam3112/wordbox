@@ -250,7 +250,12 @@ fs.writeFileSync(
   JSON.stringify(puzzles, null, 2)
 );
 
-const clientPuzzles = puzzles.map(({ id, letters, hints }) => ({ id, letters, hints }));
+const clientPuzzles = puzzles.map(({ id, letters, hints, solution }) => ({
+  id,
+  letters,
+  hints,
+  answer: solution.grid,
+}));
 fs.writeFileSync(
   path.join(__dirname, "../public/puzzles-client.json"),
   JSON.stringify(clientPuzzles)

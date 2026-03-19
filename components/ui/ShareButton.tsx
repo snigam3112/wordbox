@@ -7,17 +7,17 @@ interface Props {
   puzzleIndex: number;
   score: number;
   elapsed: number;
+  gridSize?: number;
 }
 
-export default function ShareButton({ puzzleIndex, score, elapsed }: Props) {
+export default function ShareButton({ puzzleIndex, score, elapsed, gridSize = 4 }: Props) {
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
-    const text = generateShareText(puzzleIndex, score, elapsed);
+    const text = generateShareText(puzzleIndex, score, elapsed, gridSize);
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      // fallback for browsers without clipboard API
       const ta = document.createElement("textarea");
       ta.value = text;
       document.body.appendChild(ta);

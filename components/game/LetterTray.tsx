@@ -21,11 +21,20 @@ export default function LetterTray({
   onTouchStart,
   onTouchEnd,
 }: Props) {
-  // Only show non-locked tiles in the tray
+  // Only show non-locked tiles — locked ones live permanently in the grid
   const trayTiles = tiles.filter((t) => !t.locked);
 
+  // Always exactly 2 rows: ceil(total / 2) columns
+  const columns = Math.ceil(trayTiles.length / 2);
+
   return (
-    <div className="tray" data-tray onDragOver={onDragOver} onDrop={onDrop}>
+    <div
+      className="tray"
+      style={{ gridTemplateColumns: `repeat(${columns}, var(--tile-size))` }}
+      data-tray
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       {trayTiles.map((tile) => (
         <LetterTile
           key={tile.id}
@@ -33,6 +42,8 @@ export default function LetterTray({
           char={tile.char}
           placed={tile.placed}
           onDragStart={(e) => onDragStart(e, tile.id, tile.char)}
+          onDragOver={onDragOver}   // forward to tray — fixes drops-on-tile bug
+          onDrop={onDrop}           // forward to tray — fixes drops-on-tile bug
           onTouchStart={(e) => onTouchStart(e, tile.id, tile.char)}
           onTouchEnd={onTouchEnd}
         />

@@ -5,7 +5,9 @@ import { ScoreEntry } from "@/types";
 import { getTodayDateString } from "@/lib/puzzles";
 
 export function useLeaderboard() {
-  const [entries, setEntries] = useState<ScoreEntry[]>([]);
+  const [dailyEntries, setDailyEntries] = useState<ScoreEntry[]>([]);
+  const [weeklyEntries, setWeeklyEntries] = useState<ScoreEntry[]>([]);
+  const [alltimeEntries, setAlltimeEntries] = useState<ScoreEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -13,19 +15,20 @@ export function useLeaderboard() {
     setLoading(true);
     try {
       const date = getTodayDateString();
-      const res = await fetch(`/api/scores?date=${date}`);
-      const data = await res.json();
-      setEntries(data);
+      const [daily, weekly, alltime] = await Promise.all([
+        fetch(`/api/scores?period=daily&date=${date}`).then((r) => r.json()),
+        fetch(`/api/scores?period=weekly`).then((r) => r.json()),
+        fetch(`/api/scores?period=alltime`).then((r) => r.json()),
+      ]);
+      setDailyEntries(Array.isArray(daily) ? daily : []);
+      setWeeklyEntries(Array.isArray(weekly) ? weekly : []);
+      setAlltimeEntries(Array.isArray(alltime) ? alltime : []);
     } finally {
       setLoading(false);
     }
   }
 
-  async function submitScore(
-    username: string,
-    score: number,
-    elapsed_sec: number
-  ) {
+  async function submitScore(username: string, score: number, elapsed_sec: number) {
     const date = getTodayDateString();
     await fetch("/api/scores", {
       method: "POST",
@@ -38,7 +41,7 @@ export function useLeaderboard() {
 
   useEffect(() => {
     fetchScores();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { entries, loading, submitted, submitScore, fetchScores };
+  return { dailyEntries, weeklyEntries, alltimeEntries, loading, submitted, submitScore, fetchScores };
 }

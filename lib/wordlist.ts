@@ -1,14 +1,15 @@
-let wordSetCache: Set<string> | null = null;
+const cache: Record<number, Set<string>> = {};
 
-export async function loadWordSet(): Promise<Set<string>> {
-  if (wordSetCache) return wordSetCache;
-  const res = await fetch("/enable4.txt");
+export async function loadWordSet(size = 4): Promise<Set<string>> {
+  if (cache[size]) return cache[size];
+  const file = size === 3 ? "/enable3.txt" : "/enable4.txt";
+  const res = await fetch(file);
   const text = await res.text();
-  wordSetCache = new Set(
+  cache[size] = new Set(
     text
       .split(/\r?\n/)
       .map((w) => w.trim().toLowerCase())
-      .filter((w) => w.length === 4)
+      .filter((w) => w.length === size)
   );
-  return wordSetCache;
+  return cache[size];
 }
