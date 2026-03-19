@@ -55,7 +55,7 @@ export default function PlayPage() {
       const [ws, puzzle] = await Promise.all([loadWordSet(4), getDailyPuzzle()]);
       setWordSet(ws);
       setCurrentPuzzle(puzzle);
-      if (hasWonToday() && puzzle.answer) {
+      if (hasWonToday("4x4") && puzzle.answer) {
         game.showSolved(puzzle.answer);
       } else {
         game.initGame(puzzle.letters, puzzle.hints, 4);
@@ -67,7 +67,7 @@ export default function PlayPage() {
   useEffect(() => {
     if (game.status === "won") {
       if (!game.gaveUp && !yesterdayMode) {
-        const newStreak = recordWin();
+        const newStreak = recordWin("4x4");
         setStreak(newStreak);
         const newRecord = recordPersonalBest("4x4", elapsed);
         setIsNewRecord(newRecord);

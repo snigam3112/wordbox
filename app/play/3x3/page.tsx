@@ -55,7 +55,7 @@ export default function Play3x3Page() {
       const [ws, puzzle] = await Promise.all([loadWordSet(3), getDailyPuzzle3x3()]);
       setWordSet(ws);
       setCurrentPuzzle(puzzle);
-      if (hasWonToday() && puzzle.answer) {
+      if (hasWonToday("3x3") && puzzle.answer) {
         game.showSolved(puzzle.answer);
       } else {
         game.initGame(puzzle.letters, puzzle.hints, 3);
@@ -67,7 +67,7 @@ export default function Play3x3Page() {
   useEffect(() => {
     if (game.status === "won") {
       if (!game.gaveUp && !yesterdayMode) {
-        const newStreak = recordWin();
+        const newStreak = recordWin("3x3");
         setStreak(newStreak);
         const newRecord = recordPersonalBest("3x3", elapsed);
         setIsNewRecord(newRecord);

@@ -57,7 +57,7 @@ export default function Play5x5Page() {
         const [ws, puzzle] = await Promise.all([loadWordSet(5), getDailyPuzzle5x5()]);
         setWordSet(ws);
         setCurrentPuzzle(puzzle);
-        if (hasWonToday() && puzzle.answer) {
+        if (hasWonToday("5x5") && puzzle.answer) {
           game.showSolved(puzzle.answer);
         } else {
           game.initGame(puzzle.letters, puzzle.hints, 5);
@@ -74,7 +74,7 @@ export default function Play5x5Page() {
   useEffect(() => {
     if (game.status === "won") {
       if (!game.gaveUp && !yesterdayMode) {
-        const newStreak = recordWin();
+        const newStreak = recordWin("5x5");
         setStreak(newStreak);
         const newRecord = recordPersonalBest("5x5", elapsed);
         setIsNewRecord(newRecord);
