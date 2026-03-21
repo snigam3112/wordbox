@@ -34,6 +34,8 @@ export function useDragDrop(onPlace: PlaceFn, onReturnToTray: ReturnFn) {
   const dragData = useRef<DragData | null>(null);
   const ghostRef = useRef<HTMLDivElement | null>(null);
   const touchMoveHandlerRef = useRef<((e: TouchEvent) => void) | null>(null);
+  const lastHighlightedCellRef = useRef<Element | null>(null);
+  const sourceCellRef = useRef<Element | null>(null);
 
   // ── Mouse / pointer drag ──────────────────────────────────────────────────
 
@@ -85,6 +87,13 @@ export function useDragDrop(onPlace: PlaceFn, onReturnToTray: ReturnFn) {
 
   // ── Touch drag ────────────────────────────────────────────────────────────
 
+  function highlightDropCell(el: Element | null) {
+    if (lastHighlightedCellRef.current === el) return;
+    lastHighlightedCellRef.current?.classList.remove("cell--drop-target");
+    if (el) el.classList.add("cell--drop-target");
+    lastHighlightedCellRef.current = el;
+  }
+
   function handleTileTouchStart(
     e: React.TouchEvent,
     tileId: string,
@@ -99,11 +108,30 @@ export function useDragDrop(onPlace: PlaceFn, onReturnToTray: ReturnFn) {
     const ghost = createGhost(tileChar, touch.clientX, touch.clientY);
     ghostRef.current = ghost;
 
+    // Dim the source cell so the player can see the tile is "in hand"
+    const sourceCellEl = (e.target as HTMLElement).closest("[data-cell]");
+    if (sourceCellEl) {
+      sourceCellEl.classList.add("cell--lifting");
+      sourceCellRef.current = sourceCellEl;
+    }
+
+    // Subtle haptic on pick-up
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(8);
+    }
+
     const onMove = (ev: TouchEvent) => {
       ev.preventDefault();
       const t = ev.touches[0];
       moveGhost(ghost, t.clientX, t.clientY);
+
+      // Highlight the cell currently under the finger.
+      // Ghost has pointer-events: none so elementFromPoint finds the real target.
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      const cell = el?.closest("[data-cell]") ?? null;
+      highlightDropCell(cell);
     };
+
     touchMoveHandlerRef.current = onMove;
     document.addEventListener("touchmove", onMove, { passive: false });
   }
@@ -117,6 +145,11 @@ export function useDragDrop(onPlace: PlaceFn, onReturnToTray: ReturnFn) {
       ghostRef.current.remove();
       ghostRef.current = null;
     }
+    // Clear cell highlights
+    lastHighlightedCellRef.current?.classList.remove("cell--drop-target");
+    lastHighlightedCellRef.current = null;
+    sourceCellRef.current?.classList.remove("cell--lifting");
+    sourceCellRef.current = null;
   }
 
   function handleTileTouchEnd(e: React.TouchEvent) {

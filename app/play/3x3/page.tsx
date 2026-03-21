@@ -37,7 +37,7 @@ export default function Play3x3Page() {
 
   const game = useGameState(wordSet);
   const { elapsed } = useTimer(game.status === "playing");
-  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitScore } = useLeaderboard();
+  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitScore } = useLeaderboard("3x3");
   const puzzleIndex = getPuzzleIndex();
 
   useEffect(() => {
@@ -224,10 +224,10 @@ export default function Play3x3Page() {
           onDragOver={(e, r, c) => dnd.handleCellDragOver(e)}
           onDrop={handleCellDrop}
           onTileDragStart={(e, char, r, c) =>
-            dnd.handleTileDragStart(e, `cell-${r}-${c}`, char, "cell", r, c)
+            dnd.handleTileDragStart(e, game.cellToTile[`${r},${c}`] ?? `cell-${r}-${c}`, char, "cell", r, c)
           }
           onTileTouchStart={(e, char, r, c) =>
-            dnd.handleTileTouchStart(e, `cell-${r}-${c}`, char, "cell", r, c)
+            dnd.handleTileTouchStart(e, game.cellToTile[`${r},${c}`] ?? `cell-${r}-${c}`, char, "cell", r, c)
           }
           onTileTouchEnd={handleTileTouchEnd}
         />

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// puzzle_date is stored as "${mode}:${date}", e.g. "4x4:2026-03-20"
+// This avoids a schema migration while keeping modes separate.
+
+function modeDate(mode: string, date: string): string {
+  return `${mode}:${date}`;
+}
+
 function getWeekStart(): string {
   const now = new Date();
   const day = now.getUTCDay();
@@ -26,6 +33,7 @@ function dedupByUsername(
 export async function GET(req: NextRequest) {
   const period = req.nextUrl.searchParams.get("period") ?? "daily";
   const date = req.nextUrl.searchParams.get("date");
+  const mode = req.nextUrl.searchParams.get("mode") ?? "4x4";
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query: any = supabase
@@ -35,11 +43,15 @@ export async function GET(req: NextRequest) {
 
   if (period === "daily") {
     if (!date) return NextResponse.json({ error: "date required" }, { status: 400 });
-    query = query.eq("puzzle_date", date).limit(10);
+    query = query.eq("puzzle_date", modeDate(mode, date)).limit(10);
   } else if (period === "weekly") {
-    query = query.gte("puzzle_date", getWeekStart()).limit(200);
+    query = query
+      .like("puzzle_date", `${mode}:%`)
+      .gte("puzzle_date", modeDate(mode, getWeekStart()))
+      .limit(200);
   } else {
-    query = query.limit(500);
+    // alltime
+    query = query.like("puzzle_date", `${mode}:%`).limit(500);
   }
 
   const { data, error } = await query;
@@ -62,7 +74,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { puzzle_date, username, score, elapsed_sec } = body;
+  const { puzzle_date, username, score, elapsed_sec, mode = "4x4" } = body;
 
   if (!puzzle_date || !username || score == null || elapsed_sec == null) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
@@ -75,7 +87,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await supabase.from("scores").insert({
-    puzzle_date,
+    puzzle_date: modeDate(mode, puzzle_date),
     username,
     score,
     elapsed_sec,

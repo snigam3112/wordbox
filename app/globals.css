@@ -807,22 +807,29 @@ body {
 
 /* ── Touch drag ghost ────────────────────────────────────────────────── */
 
+/* Ghost follows the finger, floating just above the thumb */
 .tile--drag-ghost {
   position: fixed;
-  width: calc(var(--tile-size) + 16px);
-  height: calc(var(--tile-size) + 16px);
-  font-size: clamp(1.4rem, 4vw, 1.8rem);
-  font-weight: 700;
-  background: var(--accent);
-  color: #fff;
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: var(--tile-size);
+  height: var(--tile-size);
   pointer-events: none;
   z-index: 1000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  transform: translate(-50%, calc(-100% - 20px));
-  opacity: 0.92;
-  cursor: grabbing;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  /* Centre horizontally on finger; sit above thumb so target stays visible */
+  transform: translate(-50%, calc(-100% - 14px));
+  opacity: 0.95;
+}
+
+/* Source cell dims while its tile is in hand */
+.cell--lifting {
+  opacity: 0.3;
+  transition: opacity 0.1s;
+}
+
+/* Cell highlighted as the active drop target during touch drag */
+.cell--drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--accent) 15%, var(--cell-bg, #f5f5f5));
+  transition: background 0.08s;
 }
