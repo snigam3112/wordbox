@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   if (username.length < 1 || username.length > 20) {
     return NextResponse.json({ error: "invalid username" }, { status: 400 });
   }
-  if (score < 100 || score > 1000) {
+  if (score < 50 || score > 1000) {
     return NextResponse.json({ error: "invalid score" }, { status: 400 });
   }
 

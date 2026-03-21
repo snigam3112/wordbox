@@ -37,7 +37,7 @@ export default function Play3x3Page() {
 
   const game = useGameState(wordSet);
   const { elapsed } = useTimer(game.status === "playing");
-  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitScore } = useLeaderboard("3x3");
+  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitError, submitScore } = useLeaderboard("3x3");
   const puzzleIndex = getPuzzleIndex();
 
   useEffect(() => {
@@ -137,6 +137,7 @@ export default function Play3x3Page() {
           username={username}
           onSubmit={handleSubmitScore}
           submitted={submitted}
+          submitError={submitError}
           onClose={() => setShowWinOverlay(false)}
           gaveUp={game.gaveUp}
           gridSize={3}

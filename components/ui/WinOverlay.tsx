@@ -11,6 +11,7 @@ interface Props {
   username: string;
   onSubmit: () => void;
   submitted: boolean;
+  submitError?: string | null;
   onClose: () => void;
   gaveUp: boolean;
   gridSize?: number;
@@ -27,6 +28,7 @@ export default function WinOverlay({
   username,
   onSubmit,
   submitted,
+  submitError = null,
   onClose,
   gaveUp,
   gridSize = 4,
@@ -79,12 +81,17 @@ export default function WinOverlay({
                   gridSize={gridSize}
                 />
                 {!hideSubmit && (
-                  !submitted ? (
-                    <button className="btn btn--primary" onClick={onSubmit}>
-                      Submit to Leaderboard
-                    </button>
-                  ) : (
+                  submitted ? (
                     <p className="modal__submitted">Score submitted! ✓</p>
+                  ) : (
+                    <>
+                      <button className="btn btn--primary" onClick={onSubmit}>
+                        Submit to Leaderboard
+                      </button>
+                      {submitError && (
+                        <p className="modal__submit-error">{submitError}</p>
+                      )}
+                    </>
                   )
                 )}
               </div>

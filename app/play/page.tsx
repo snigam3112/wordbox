@@ -37,7 +37,7 @@ export default function PlayPage() {
 
   const game = useGameState(wordSet);
   const { elapsed } = useTimer(game.status === "playing");
-  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitScore } = useLeaderboard("4x4");
+  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitError, submitScore } = useLeaderboard("4x4");
   const puzzleIndex = getPuzzleIndex();
 
   useEffect(() => {
@@ -139,6 +139,7 @@ export default function PlayPage() {
           username={username}
           onSubmit={handleSubmitScore}
           submitted={submitted}
+          submitError={submitError}
           onClose={() => setShowWinOverlay(false)}
           gaveUp={game.gaveUp}
           gridSize={4}

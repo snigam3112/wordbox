@@ -10,6 +10,7 @@ export function useLeaderboard(mode = "4x4") {
   const [alltimeEntries, setAlltimeEntries] = useState<ScoreEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function fetchScores() {
     setLoading(true);
@@ -30,18 +31,37 @@ export function useLeaderboard(mode = "4x4") {
 
   async function submitScore(username: string, score: number, elapsed_sec: number) {
     const date = getTodayDateString();
-    await fetch("/api/scores", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ puzzle_date: date, username, score, elapsed_sec, mode }),
-    });
-    setSubmitted(true);
-    await fetchScores();
+    setSubmitError(null);
+    try {
+      const res = await fetch("/api/scores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ puzzle_date: date, username, score, elapsed_sec, mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSubmitError(data?.error ?? "Submission failed. Try again.");
+        return;
+      }
+      setSubmitted(true);
+      await fetchScores();
+    } catch {
+      setSubmitError("Network error. Check your connection and try again.");
+    }
   }
 
   useEffect(() => {
     fetchScores();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { dailyEntries, weeklyEntries, alltimeEntries, loading, submitted, submitScore, fetchScores };
+  return {
+    dailyEntries,
+    weeklyEntries,
+    alltimeEntries,
+    loading,
+    submitted,
+    submitError,
+    submitScore,
+    fetchScores,
+  };
 }

@@ -38,7 +38,7 @@ export default function Play5x5Page() {
 
   const game = useGameState(wordSet);
   const { elapsed } = useTimer(game.status === "playing");
-  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitScore } = useLeaderboard("5x5");
+  const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitError, submitScore } = useLeaderboard("5x5");
   const puzzleIndex = getPuzzleIndex();
 
   useEffect(() => {
@@ -164,6 +164,7 @@ export default function Play5x5Page() {
           username={username}
           onSubmit={handleSubmitScore}
           submitted={submitted}
+          submitError={submitError}
           onClose={() => setShowWinOverlay(false)}
           gaveUp={game.gaveUp}
           gridSize={5}

@@ -380,6 +380,13 @@ body {
   font-weight: 600;
 }
 
+.modal__submit-error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  margin-top: 6px;
+  text-align: center;
+}
+
 .modal__next {
   font-size: 0.8rem;
   color: var(--text-muted);
