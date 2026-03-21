@@ -154,6 +154,16 @@ export default function PlayPage() {
         <div className="play-header__left">
           <h1 className="logo">WordBox</h1>
           <Link href="/play/3x3" className="mode-link">Try 3×3 →</Link>
+          {username && (
+            <button
+              className="username-chip"
+              onClick={() => setShowModal(true)}
+              aria-label="Change username"
+              title="Change username"
+            >
+              👤 {username}
+            </button>
+          )}
         </div>
         <div className="play-header__right">
           <button
@@ -170,16 +180,6 @@ export default function PlayPage() {
           >
             {soundOn ? "🔊" : "🔇"}
           </button>
-          {username && (
-            <button
-              className="username-chip"
-              onClick={() => setShowModal(true)}
-              aria-label="Change username"
-              title="Change username"
-            >
-              👤 {username}
-            </button>
-          )}
           <StreakBadge streak={streak} />
           <Timer elapsed={elapsed} />
           <ScoreDisplay elapsed={elapsed} />

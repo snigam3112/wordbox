@@ -152,6 +152,16 @@ export default function Play3x3Page() {
         <div className="play-header__left">
           <h1 className="logo">WordBox <span style={{ fontSize: "1rem", opacity: 0.7 }}>3×3</span></h1>
           <Link href="/play" className="mode-link">← 4×4</Link>
+          {username && (
+            <button
+              className="username-chip"
+              onClick={() => setShowModal(true)}
+              aria-label="Change username"
+              title="Change username"
+            >
+              👤 {username}
+            </button>
+          )}
         </div>
         <div className="play-header__right">
           <button
@@ -168,16 +178,6 @@ export default function Play3x3Page() {
           >
             {soundOn ? "🔊" : "🔇"}
           </button>
-          {username && (
-            <button
-              className="username-chip"
-              onClick={() => setShowModal(true)}
-              aria-label="Change username"
-              title="Change username"
-            >
-              👤 {username}
-            </button>
-          )}
           <StreakBadge streak={streak} />
           <Timer elapsed={elapsed} />
           <ScoreDisplay elapsed={elapsed} />
