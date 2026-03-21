@@ -153,14 +153,7 @@ export default function Play3x3Page() {
           <h1 className="logo">WordBox <span style={{ fontSize: "1rem", opacity: 0.7 }}>3×3</span></h1>
           <Link href="/play" className="mode-link">← 4×4</Link>
           {username && (
-            <button
-              className="username-chip"
-              onClick={() => setShowModal(true)}
-              aria-label="Change username"
-              title="Change username"
-            >
-              👤 {username}
-            </button>
+            <span className="username-chip">👤 {username}</span>
           )}
         </div>
         <div className="play-header__right">

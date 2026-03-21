@@ -155,14 +155,7 @@ export default function PlayPage() {
           <h1 className="logo">WordBox</h1>
           <Link href="/play/3x3" className="mode-link">Try 3×3 →</Link>
           {username && (
-            <button
-              className="username-chip"
-              onClick={() => setShowModal(true)}
-              aria-label="Change username"
-              title="Change username"
-            >
-              👤 {username}
-            </button>
+            <span className="username-chip">👤 {username}</span>
           )}
         </div>
         <div className="play-header__right">
