@@ -168,6 +168,16 @@ export default function Play3x3Page() {
           >
             {soundOn ? "🔊" : "🔇"}
           </button>
+          {username && (
+            <button
+              className="username-chip"
+              onClick={() => setShowModal(true)}
+              aria-label="Change username"
+              title="Change username"
+            >
+              👤 {username}
+            </button>
+          )}
           <StreakBadge streak={streak} />
           <Timer elapsed={elapsed} />
           <ScoreDisplay elapsed={elapsed} />
