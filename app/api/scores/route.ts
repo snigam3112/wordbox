@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// puzzle_date is stored as "${mode}:${date}", e.g. "4x4:2026-03-20"
-// This avoids a schema migration while keeping modes separate.
-
-function modeDate(mode: string, date: string): string {
-  return `${mode}:${date}`;
-}
-
 function getWeekStart(): string {
   const now = new Date();
   const day = now.getUTCDay();
@@ -39,19 +32,16 @@ export async function GET(req: NextRequest) {
   let query: any = supabase
     .from("scores")
     .select("username, score, elapsed_sec")
+    .eq("mode", mode)
     .order("score", { ascending: false });
 
   if (period === "daily") {
     if (!date) return NextResponse.json({ error: "date required" }, { status: 400 });
-    query = query.eq("puzzle_date", modeDate(mode, date)).limit(10);
+    query = query.eq("puzzle_date", date).limit(10);
   } else if (period === "weekly") {
-    query = query
-      .like("puzzle_date", `${mode}:%`)
-      .gte("puzzle_date", modeDate(mode, getWeekStart()))
-      .limit(200);
+    query = query.gte("puzzle_date", getWeekStart()).limit(200);
   } else {
-    // alltime
-    query = query.like("puzzle_date", `${mode}:%`).limit(500);
+    query = query.limit(500);
   }
 
   const { data, error } = await query;
@@ -87,10 +77,11 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await supabase.from("scores").insert({
-    puzzle_date: modeDate(mode, puzzle_date),
+    puzzle_date,
     username,
     score,
     elapsed_sec,
+    mode,
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
