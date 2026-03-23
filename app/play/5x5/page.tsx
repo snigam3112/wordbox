@@ -11,17 +11,51 @@ import UsernameModal from "@/components/ui/UsernameModal";
 import WinOverlay from "@/components/ui/WinOverlay";
 import HowToPlayModal from "@/components/ui/HowToPlayModal";
 import LeaderboardTable from "@/components/ui/LeaderboardTable";
+import DefinitionTooltip from "@/components/ui/DefinitionTooltip";
 import { useGameState } from "@/hooks/useGameState";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useTimer } from "@/hooks/useTimer";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { loadWordSet } from "@/lib/wordlist";
-import { getDailyPuzzle5x5, getPuzzleIndex } from "@/lib/puzzles";
+import { getDailyPuzzle5x5, getPuzzleIndex, getTodayDateString } from "@/lib/puzzles";
 import { getStreak, recordWin, hasWonToday } from "@/lib/streak";
 import { calculateScore } from "@/lib/scoring";
 import { getPersonalBest, recordPersonalBest } from "@/lib/personal-best";
 import { isSoundEnabled, toggleSound, playPlaceSound, playWinSound } from "@/lib/sounds";
-import { Puzzle } from "@/types";
+import { saveSession, loadSession } from "@/lib/sessionGame";
+import { fetchDefinition } from "@/lib/definitions";
+import { Puzzle, HintCell } from "@/types";
+
+function deriveHints(
+  puzzle: Puzzle,
+  targetCount: number
+): { hints: HintCell[]; letters: string[] } {
+  const hints = [...(puzzle.hints ?? [])];
+  const letters = [...puzzle.letters];
+  if (!puzzle.answer || hints.length >= targetCount) return { hints, letters };
+
+  const gridSize = puzzle.answer.length;
+  const hintedKeys = new Set(hints.map((h) => `${h.row},${h.col}`));
+  const available: [number, number][] = [];
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (!hintedKeys.has(`${r},${c}`)) available.push([r, c]);
+    }
+  }
+
+  let seed = puzzle.id;
+  while (hints.length < targetCount && available.length > 0) {
+    const rand = ((seed * 1664525 + 1013904223) >>> 0) % available.length;
+    const [r, c] = available[rand];
+    const letter = puzzle.answer[r][c].toUpperCase();
+    hints.push({ row: r, col: c, letter });
+    const trayIdx = letters.indexOf(letter);
+    if (trayIdx !== -1) letters.splice(trayIdx, 1);
+    available.splice(rand, 1);
+    seed = rand + 1;
+  }
+  return { hints, letters };
+}
 
 export default function Play5x5Page() {
   const [username, setUsername] = useState<string | null>(null);
@@ -35,9 +69,13 @@ export default function Play5x5Page() {
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [yesterdayMode, setYesterdayMode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [tooltipWord, setTooltipWord] = useState<string | null>(null);
+  const [tooltipDef, setTooltipDef] = useState<string | null>(null);
+  const [tooltipLoading, setTooltipLoading] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const game = useGameState(wordSet);
-  const { elapsed } = useTimer(game.status === "playing");
+  const { elapsed, setElapsed } = useTimer(game.status === "playing");
   const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitError, submitScore } = useLeaderboard("5x5");
   const puzzleIndex = getPuzzleIndex();
 
@@ -47,29 +85,52 @@ export default function Play5x5Page() {
     else setShowModal(true);
     setStreak(getStreak());
     setSoundOn(isSoundEnabled());
-
-    if (!localStorage.getItem("wordbox_seen_howto")) {
-      setShowHowTo(true);
-    }
+    if (!localStorage.getItem("wordbox_seen_howto")) setShowHowTo(true);
 
     async function setup() {
       try {
+        const today = getTodayDateString();
         const [ws, puzzle] = await Promise.all([loadWordSet(5), getDailyPuzzle5x5()]);
         setWordSet(ws);
         setCurrentPuzzle(puzzle);
+
         if (hasWonToday("5x5") && puzzle.answer) {
           game.showSolved(puzzle.answer);
-        } else {
-          game.initGame(puzzle.letters, puzzle.hints, 5);
+          return;
         }
+
+        const session = loadSession("5x5", today);
+        if (session) {
+          game.restoreGame(session, ws);
+          setElapsed(session.elapsed);
+          return;
+        }
+
+        // 5×5 gets 4 pre-placed tiles
+        const { hints, letters } = deriveHints(puzzle, 4);
+        game.initGame(letters, hints, 5);
       } catch (err) {
-        setLoadError(
-          err instanceof Error ? err.message : "Failed to load 5×5 puzzle."
-        );
+        setLoadError(err instanceof Error ? err.message : "Failed to load 5×5 puzzle.");
       }
     }
     setup();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (game.status !== "playing" || !currentPuzzle) return;
+    saveSession("5x5", {
+      puzzleDate: getTodayDateString(),
+      grid: game.grid,
+      tiles: game.tiles,
+      lockedCells: Array.from(game.lockedCells),
+      cellToTile: game.cellToTile,
+      hints: game.hints,
+      hintsRemaining: game.hintsRemaining,
+      hintsUsed: game.hintsUsed,
+      elapsed,
+      gridSize: 5,
+    });
+  }, [game.grid, game.hintsRemaining, game.hintsUsed, elapsed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (game.status === "won") {
@@ -82,7 +143,6 @@ export default function Play5x5Page() {
       }
       setShowWinOverlay(true);
     }
-    // "solved" = already-completed view — no overlay, no streak update
   }, [game.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dnd = useDragDrop(game.placeTile, game.returnToTray);
@@ -102,9 +162,7 @@ export default function Play5x5Page() {
     setShowModal(false);
   }
 
-  function handleReset() {
-    game.resetGame();
-  }
+  function handleReset() { game.resetGame(); }
 
   function handleGiveUp() {
     if (!currentPuzzle?.answer) return;
@@ -118,8 +176,7 @@ export default function Play5x5Page() {
   }
 
   function handleToggleSound() {
-    const next = toggleSound();
-    setSoundOn(next);
+    setSoundOn(toggleSound());
   }
 
   async function loadYesterday() {
@@ -127,12 +184,28 @@ export default function Play5x5Page() {
     try {
       const puzzle = await getDailyPuzzle5x5(1);
       setCurrentPuzzle(puzzle);
-      game.initGame(puzzle.letters, puzzle.hints, 5);
+      const { hints, letters } = deriveHints(puzzle, 4);
+      game.initGame(letters, hints, 5);
       setYesterdayMode(true);
       setShowWinOverlay(false);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Failed to load puzzle.");
     }
+  }
+
+  async function handleWordHover(word: string, x: number, y: number) {
+    setTooltipWord(word);
+    setTooltipPos({ x, y });
+    setTooltipLoading(true);
+    setTooltipDef(null);
+    const def = await fetchDefinition(word);
+    setTooltipDef(def);
+    setTooltipLoading(false);
+  }
+
+  function handleWordLeave() {
+    setTooltipWord(null);
+    setTooltipDef(null);
   }
 
   if (loadError) {
@@ -155,6 +228,16 @@ export default function Play5x5Page() {
     <main className="play-page">
       {showModal && <UsernameModal onConfirm={handleConfirmUsername} />}
       {showHowTo && <HowToPlayModal onClose={() => setShowHowTo(false)} />}
+
+      {tooltipWord && (
+        <DefinitionTooltip
+          word={tooltipWord}
+          definition={tooltipDef}
+          loading={tooltipLoading}
+          x={tooltipPos.x}
+          y={tooltipPos.y}
+        />
+      )}
 
       {game.status === "won" && showWinOverlay && username && (
         <WinOverlay
@@ -181,18 +264,8 @@ export default function Play5x5Page() {
           <Link href="/play" className="mode-link">← 4×4</Link>
         </div>
         <div className="play-header__right">
-          <button
-            className="btn--icon"
-            onClick={() => setShowHowTo(true)}
-            aria-label="How to play"
-          >
-            ❓
-          </button>
-          <button
-            className="sound-toggle"
-            onClick={handleToggleSound}
-            aria-label={soundOn ? "Mute sounds" : "Enable sounds"}
-          >
+          <button className="btn--icon" onClick={() => setShowHowTo(true)} aria-label="How to play">❓</button>
+          <button className="sound-toggle" onClick={handleToggleSound} aria-label={soundOn ? "Mute" : "Unmute"}>
             {soundOn ? "🔊" : "🔇"}
           </button>
           <StreakBadge streak={streak} />
@@ -202,11 +275,8 @@ export default function Play5x5Page() {
       </header>
 
       {yesterdayMode && (
-        <div className="yesterday-banner">
-          Playing yesterday&apos;s puzzle — scores not submitted
-        </div>
+        <div className="yesterday-banner">Playing yesterday&apos;s puzzle — scores not submitted</div>
       )}
-
       {game.status === "solved" && (
         <div className="already-won-banner">
           You already solved today&apos;s puzzle! Here&apos;s your solution. Come back tomorrow.
@@ -224,19 +294,13 @@ export default function Play5x5Page() {
           <div className="progress__group">
             <span className="progress__label">Rows</span>
             {game.validation.validRows.map((v, i) => (
-              <span
-                key={i}
-                className={`progress__pip ${v ? "progress__pip--valid" : game.grid[i]?.every(Boolean) ? "progress__pip--invalid" : ""}`}
-              />
+              <span key={i} className={`progress__pip ${v ? "progress__pip--valid" : game.grid[i]?.every(Boolean) ? "progress__pip--invalid" : ""}`} />
             ))}
           </div>
           <div className="progress__group">
             <span className="progress__label">Cols</span>
             {game.validation.validCols.map((v, i) => (
-              <span
-                key={i}
-                className={`progress__pip ${v ? "progress__pip--valid" : game.grid.every((r) => r[i]) ? "progress__pip--invalid" : ""}`}
-              />
+              <span key={i} className={`progress__pip ${v ? "progress__pip--valid" : game.grid.every((r) => r[i]) ? "progress__pip--invalid" : ""}`} />
             ))}
           </div>
         </div>
@@ -258,6 +322,8 @@ export default function Play5x5Page() {
             dnd.handleTileTouchStart(e, game.cellToTile[`${r},${c}`] ?? `cell-${r}-${c}`, char, "cell", r, c)
           }
           onTileTouchEnd={handleTileTouchEnd}
+          onWordHover={handleWordHover}
+          onWordLeave={handleWordLeave}
         />
 
         {game.status !== "solved" && (
@@ -270,23 +336,15 @@ export default function Play5x5Page() {
               onTouchStart={(e, id, char) => dnd.handleTileTouchStart(e, id, char, "tray")}
               onTouchEnd={dnd.handleTileTouchEnd}
             />
-
             <div className="game-buttons">
-              <button className="btn btn--reset" onClick={handleReset}>
-                Reset
-              </button>
+              <button className="btn btn--reset" onClick={handleReset}>Reset</button>
               {game.status === "playing" && game.hintsRemaining > 0 && (
-                <button
-                  className={`btn btn--hint${game.hintMode ? " active" : ""}`}
-                  onClick={game.activateHint}
-                >
+                <button className={`btn btn--hint${game.hintMode ? " active" : ""}`} onClick={game.activateHint}>
                   💡 {game.hintsRemaining}
                 </button>
               )}
               {game.status === "playing" && (
-                <button className="btn btn--giveup" onClick={handleGiveUp}>
-                  I Give Up
-                </button>
+                <button className="btn btn--giveup" onClick={handleGiveUp}>I Give Up</button>
               )}
             </div>
           </>
@@ -295,16 +353,9 @@ export default function Play5x5Page() {
 
       <section className="leaderboard-section">
         <h2 className="leaderboard-section__title">Leaderboard</h2>
-        <LeaderboardTable
-          dailyEntries={dailyEntries}
-          weeklyEntries={weeklyEntries}
-          alltimeEntries={alltimeEntries}
-          currentUsername={username}
-        />
+        <LeaderboardTable dailyEntries={dailyEntries} weeklyEntries={weeklyEntries} alltimeEntries={alltimeEntries} currentUsername={username} />
         {!yesterdayMode && (
-          <button className="btn--yesterday" onClick={loadYesterday}>
-            ← Yesterday&apos;s puzzle
-          </button>
+          <button className="btn--yesterday" onClick={loadYesterday}>← Yesterday&apos;s puzzle</button>
         )}
       </section>
     </main>

@@ -315,6 +315,10 @@ export function useGameState(wordSet: Set<string> | null) {
       newLockedCells.add(cellKey(row, col));
       newCellToTile[cellKey(row, col)] = hintTile.id;
 
+      // Hide one matching unplaced tray tile so the letter disappears from the rack
+      const trayMatch = newTiles.find((t) => !t.locked && !t.placed && t.char === hintLetter);
+      if (trayMatch) trayMatch.placed = true;
+
       const validation = wordSet
         ? validateGrid(newGrid, wordSet)
         : makeDefaultValidation(prev.gridSize);
@@ -334,6 +338,37 @@ export function useGameState(wordSet: Set<string> | null) {
     });
   }
 
+  function restoreGame(
+    session: {
+      grid: (string | null)[][];
+      tiles: TileState[];
+      lockedCells: string[];
+      cellToTile: Record<string, string>;
+      hints: HintCell[];
+      hintsRemaining: number;
+      hintsUsed: number;
+      gridSize: number;
+    },
+    currentWordSet: Set<string> | null
+  ) {
+    setState({
+      grid: session.grid,
+      tiles: session.tiles,
+      lockedCells: new Set(session.lockedCells),
+      cellToTile: session.cellToTile,
+      hints: session.hints,
+      hintsRemaining: session.hintsRemaining,
+      hintsUsed: session.hintsUsed,
+      status: "playing",
+      validation: currentWordSet
+        ? validateGrid(session.grid, currentWordSet)
+        : makeDefaultValidation(session.gridSize),
+      gridSize: session.gridSize,
+      gaveUp: false,
+      hintMode: false,
+    });
+  }
+
   return {
     ...state,
     initGame,
@@ -344,5 +379,6 @@ export function useGameState(wordSet: Set<string> | null) {
     showSolved,
     activateHint,
     applyHint,
+    restoreGame,
   };
 }

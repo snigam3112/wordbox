@@ -23,5 +23,5 @@ export function useTimer(running: boolean) {
     setElapsed(0);
   }
 
-  return { elapsed, reset };
+  return { elapsed, reset, setElapsed };
 }

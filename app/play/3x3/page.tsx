@@ -11,16 +11,19 @@ import UsernameModal from "@/components/ui/UsernameModal";
 import WinOverlay from "@/components/ui/WinOverlay";
 import HowToPlayModal from "@/components/ui/HowToPlayModal";
 import LeaderboardTable from "@/components/ui/LeaderboardTable";
+import DefinitionTooltip from "@/components/ui/DefinitionTooltip";
 import { useGameState } from "@/hooks/useGameState";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useTimer } from "@/hooks/useTimer";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { loadWordSet } from "@/lib/wordlist";
-import { getDailyPuzzle3x3, getPuzzleIndex } from "@/lib/puzzles";
+import { getDailyPuzzle3x3, getPuzzleIndex, getTodayDateString } from "@/lib/puzzles";
 import { getStreak, recordWin, hasWonToday } from "@/lib/streak";
 import { calculateScore } from "@/lib/scoring";
 import { getPersonalBest, recordPersonalBest } from "@/lib/personal-best";
 import { isSoundEnabled, toggleSound, playPlaceSound, playWinSound } from "@/lib/sounds";
+import { saveSession, loadSession } from "@/lib/sessionGame";
+import { fetchDefinition } from "@/lib/definitions";
 import { Puzzle } from "@/types";
 
 export default function Play3x3Page() {
@@ -34,9 +37,13 @@ export default function Play3x3Page() {
   const [soundOn, setSoundOn] = useState(true);
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [yesterdayMode, setYesterdayMode] = useState(false);
+  const [tooltipWord, setTooltipWord] = useState<string | null>(null);
+  const [tooltipDef, setTooltipDef] = useState<string | null>(null);
+  const [tooltipLoading, setTooltipLoading] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const game = useGameState(wordSet);
-  const { elapsed } = useTimer(game.status === "playing");
+  const { elapsed, setElapsed } = useTimer(game.status === "playing");
   const { dailyEntries, weeklyEntries, alltimeEntries, submitted, submitError, submitScore } = useLeaderboard("3x3");
   const puzzleIndex = getPuzzleIndex();
 
@@ -46,23 +53,46 @@ export default function Play3x3Page() {
     else setShowModal(true);
     setStreak(getStreak());
     setSoundOn(isSoundEnabled());
-
-    if (!localStorage.getItem("wordbox_seen_howto")) {
-      setShowHowTo(true);
-    }
+    if (!localStorage.getItem("wordbox_seen_howto")) setShowHowTo(true);
 
     async function setup() {
+      const today = getTodayDateString();
       const [ws, puzzle] = await Promise.all([loadWordSet(3), getDailyPuzzle3x3()]);
       setWordSet(ws);
       setCurrentPuzzle(puzzle);
+
       if (hasWonToday("3x3") && puzzle.answer) {
         game.showSolved(puzzle.answer);
-      } else {
-        game.initGame(puzzle.letters, puzzle.hints, 3);
+        return;
       }
+
+      const session = loadSession("3x3", today);
+      if (session) {
+        game.restoreGame(session, ws);
+        setElapsed(session.elapsed);
+        return;
+      }
+
+      game.initGame(puzzle.letters, puzzle.hints, 3);
     }
     setup();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (game.status !== "playing" || !currentPuzzle) return;
+    saveSession("3x3", {
+      puzzleDate: getTodayDateString(),
+      grid: game.grid,
+      tiles: game.tiles,
+      lockedCells: Array.from(game.lockedCells),
+      cellToTile: game.cellToTile,
+      hints: game.hints,
+      hintsRemaining: game.hintsRemaining,
+      hintsUsed: game.hintsUsed,
+      elapsed,
+      gridSize: 3,
+    });
+  }, [game.grid, game.hintsRemaining, game.hintsUsed, elapsed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (game.status === "won") {
@@ -75,7 +105,6 @@ export default function Play3x3Page() {
       }
       setShowWinOverlay(true);
     }
-    // "solved" = already-completed view — no overlay, no streak update
   }, [game.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dnd = useDragDrop(game.placeTile, game.returnToTray);
@@ -95,9 +124,7 @@ export default function Play3x3Page() {
     setShowModal(false);
   }
 
-  function handleReset() {
-    game.resetGame();
-  }
+  function handleReset() { game.resetGame(); }
 
   function handleGiveUp() {
     if (!currentPuzzle?.answer) return;
@@ -111,8 +138,7 @@ export default function Play3x3Page() {
   }
 
   function handleToggleSound() {
-    const next = toggleSound();
-    setSoundOn(next);
+    setSoundOn(toggleSound());
   }
 
   async function loadYesterday() {
@@ -124,10 +150,35 @@ export default function Play3x3Page() {
     setShowWinOverlay(false);
   }
 
+  async function handleWordHover(word: string, x: number, y: number) {
+    setTooltipWord(word);
+    setTooltipPos({ x, y });
+    setTooltipLoading(true);
+    setTooltipDef(null);
+    const def = await fetchDefinition(word);
+    setTooltipDef(def);
+    setTooltipLoading(false);
+  }
+
+  function handleWordLeave() {
+    setTooltipWord(null);
+    setTooltipDef(null);
+  }
+
   return (
     <main className="play-page">
       {showModal && <UsernameModal onConfirm={handleConfirmUsername} />}
       {showHowTo && <HowToPlayModal onClose={() => setShowHowTo(false)} />}
+
+      {tooltipWord && (
+        <DefinitionTooltip
+          word={tooltipWord}
+          definition={tooltipDef}
+          loading={tooltipLoading}
+          x={tooltipPos.x}
+          y={tooltipPos.y}
+        />
+      )}
 
       {game.status === "won" && showWinOverlay && username && (
         <WinOverlay
@@ -152,23 +203,11 @@ export default function Play3x3Page() {
         <div className="play-header__left">
           <h1 className="logo">WordBox <span style={{ fontSize: "1rem", opacity: 0.7 }}>3×3</span></h1>
           <Link href="/play" className="mode-link">← 4×4</Link>
-          {username && (
-            <span className="username-chip">👤 {username}</span>
-          )}
+          {username && <span className="username-chip">👤 {username}</span>}
         </div>
         <div className="play-header__right">
-          <button
-            className="btn--icon"
-            onClick={() => setShowHowTo(true)}
-            aria-label="How to play"
-          >
-            ❓
-          </button>
-          <button
-            className="sound-toggle"
-            onClick={handleToggleSound}
-            aria-label={soundOn ? "Mute sounds" : "Enable sounds"}
-          >
+          <button className="btn--icon" onClick={() => setShowHowTo(true)} aria-label="How to play">❓</button>
+          <button className="sound-toggle" onClick={handleToggleSound} aria-label={soundOn ? "Mute" : "Unmute"}>
             {soundOn ? "🔊" : "🔇"}
           </button>
           <StreakBadge streak={streak} />
@@ -178,11 +217,8 @@ export default function Play3x3Page() {
       </header>
 
       {yesterdayMode && (
-        <div className="yesterday-banner">
-          Playing yesterday&apos;s puzzle — scores not submitted
-        </div>
+        <div className="yesterday-banner">Playing yesterday&apos;s puzzle — scores not submitted</div>
       )}
-
       {game.status === "solved" && (
         <div className="already-won-banner">
           You already solved today&apos;s puzzle! Here&apos;s your solution. Come back tomorrow.
@@ -200,19 +236,13 @@ export default function Play3x3Page() {
           <div className="progress__group">
             <span className="progress__label">Rows</span>
             {game.validation.validRows.map((v, i) => (
-              <span
-                key={i}
-                className={`progress__pip ${v ? "progress__pip--valid" : game.grid[i]?.every(Boolean) ? "progress__pip--invalid" : ""}`}
-              />
+              <span key={i} className={`progress__pip ${v ? "progress__pip--valid" : game.grid[i]?.every(Boolean) ? "progress__pip--invalid" : ""}`} />
             ))}
           </div>
           <div className="progress__group">
             <span className="progress__label">Cols</span>
             {game.validation.validCols.map((v, i) => (
-              <span
-                key={i}
-                className={`progress__pip ${v ? "progress__pip--valid" : game.grid.every((r) => r[i]) ? "progress__pip--invalid" : ""}`}
-              />
+              <span key={i} className={`progress__pip ${v ? "progress__pip--valid" : game.grid.every((r) => r[i]) ? "progress__pip--invalid" : ""}`} />
             ))}
           </div>
         </div>
@@ -234,6 +264,8 @@ export default function Play3x3Page() {
             dnd.handleTileTouchStart(e, game.cellToTile[`${r},${c}`] ?? `cell-${r}-${c}`, char, "cell", r, c)
           }
           onTileTouchEnd={handleTileTouchEnd}
+          onWordHover={handleWordHover}
+          onWordLeave={handleWordLeave}
         />
 
         {game.status !== "solved" && (
@@ -246,23 +278,15 @@ export default function Play3x3Page() {
               onTouchStart={(e, id, char) => dnd.handleTileTouchStart(e, id, char, "tray")}
               onTouchEnd={dnd.handleTileTouchEnd}
             />
-
             <div className="game-buttons">
-              <button className="btn btn--reset" onClick={handleReset}>
-                Reset
-              </button>
+              <button className="btn btn--reset" onClick={handleReset}>Reset</button>
               {game.status === "playing" && game.hintsRemaining > 0 && (
-                <button
-                  className={`btn btn--hint${game.hintMode ? " active" : ""}`}
-                  onClick={game.activateHint}
-                >
+                <button className={`btn btn--hint${game.hintMode ? " active" : ""}`} onClick={game.activateHint}>
                   💡 {game.hintsRemaining}
                 </button>
               )}
               {game.status === "playing" && (
-                <button className="btn btn--giveup" onClick={handleGiveUp}>
-                  I Give Up
-                </button>
+                <button className="btn btn--giveup" onClick={handleGiveUp}>I Give Up</button>
               )}
             </div>
           </>
@@ -271,16 +295,9 @@ export default function Play3x3Page() {
 
       <section className="leaderboard-section">
         <h2 className="leaderboard-section__title">Leaderboard</h2>
-        <LeaderboardTable
-          dailyEntries={dailyEntries}
-          weeklyEntries={weeklyEntries}
-          alltimeEntries={alltimeEntries}
-          currentUsername={username}
-        />
+        <LeaderboardTable dailyEntries={dailyEntries} weeklyEntries={weeklyEntries} alltimeEntries={alltimeEntries} currentUsername={username} />
         {!yesterdayMode && (
-          <button className="btn--yesterday" onClick={loadYesterday}>
-            ← Yesterday&apos;s puzzle
-          </button>
+          <button className="btn--yesterday" onClick={loadYesterday}>← Yesterday&apos;s puzzle</button>
         )}
       </section>
     </main>

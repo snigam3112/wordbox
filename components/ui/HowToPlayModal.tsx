@@ -20,12 +20,16 @@ const STEPS = [
     desc: "No word can appear twice — rows and columns all need to be unique valid words.",
   },
   {
-    title: "Gold tiles are pre-filled hints",
-    desc: "Locked gold tiles show you one letter in the correct position. They can't be moved.",
+    title: "Purple tiles are pre-filled hints",
+    desc: "Locked purple tiles show you one letter in the correct position. They can't be moved.",
   },
   {
     title: "Score is based on speed",
     desc: "You start with 1000 points. Every second that passes costs 1 point. Using hints costs 100 pts each. Fastest wins!",
+  },
+  {
+    title: "See word definitions",
+    desc: "Hover over a completed valid word on desktop, or long-press it on mobile, to see its definition.",
   },
 ];
 
